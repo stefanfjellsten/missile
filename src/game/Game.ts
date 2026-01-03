@@ -1,6 +1,7 @@
 import { ThreeRenderer } from './ThreeRenderer'
 
 import { Input } from './Input'
+import { AudioManager } from './AudioManager'
 import { Missile } from '../entities/Missile'
 import { Explosion } from '../entities/Explosion'
 import { City } from '../entities/City'
@@ -9,8 +10,10 @@ import * as THREE from 'three'
 export class Game {
     private renderer: ThreeRenderer
     private input: Input
+    private audioManager: AudioManager
     private lastTime: number = 0
     private isRunning: boolean = false
+    private musicStarted: boolean = false
 
     private cities: City[] = []
     private missiles: Missile[] = []
@@ -29,6 +32,7 @@ export class Game {
     constructor() {
         this.renderer = new ThreeRenderer('gameCanvas')
         this.input = new Input(this.renderer)
+        this.audioManager = new AudioManager()
         this.uiElement = document.getElementById('ui')!
         this.gameOverElement = document.getElementById('game-over')!
 
@@ -92,6 +96,12 @@ export class Game {
             this.missiles.push(missile)
             this.renderer.add(missile.mesh)
             this.input.clear()
+            this.audioManager.playShoot()
+
+            if (!this.musicStarted) {
+                this.musicStarted = true
+                this.audioManager.playMidi('/Beethoven-Moonlight-Sonata.mid')
+            }
         }
 
         // 3. Update Entities
@@ -142,12 +152,14 @@ export class Game {
                 const ex = new Explosion(m.x, m.y)
                 this.explosions.push(ex)
                 this.renderer.add(ex.mesh)
+                this.audioManager.playExplosion()
             } else {
                 // Enemy missile: did it hit ground?
                 if (m.y <= -this.fieldHeight / 2 + 50) {
                     const ex = new Explosion(m.x, m.y)
                     this.explosions.push(ex)
                     this.renderer.add(ex.mesh)
+                    this.audioManager.playExplosion()
                 }
             }
             this.renderer.remove(m.mesh)
@@ -211,6 +223,7 @@ export class Game {
                     city.isAlive = false
                     missile.isAlive = false
                     // Explosion spawned in cleanup
+                    this.audioManager.playExplosion()
                 }
             })
         })
