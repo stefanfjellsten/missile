@@ -6,6 +6,8 @@ export class AudioManager {
     private sampler: Tone.Sampler
     private synth: Tone.PolySynth
     private explosionSynth: Tone.NoiseSynth
+    private playbackState: 'stopped' | 'playing' = 'stopped'
+    private midiPart: Tone.Part | null = null
 
     constructor() {
         // Initialize Piano Sampler
@@ -63,6 +65,7 @@ export class AudioManager {
 
     public async resume() {
         await Tone.start()
+        Tone.Destination.mute = false
     }
 
     public playShoot() {
@@ -84,44 +87,65 @@ export class AudioManager {
         if (this.isMuted) return
         await this.resume()
 
+        this.playbackState = 'playing'
+
         try {
             const midi = await Midi.fromUrl(url)
-
-            // Wait for sampler to load? 
             await Tone.loaded()
 
-            const now = Tone.now() + 0.5
+            // Check if we were stopped while loading
+            if ((this.playbackState as string) === 'stopped') {
+                return
+            }
 
+            // Start freshly
+            Tone.Transport.stop()
+
+            // Collect all notes
+            const notes: any[] = []
             midi.tracks.forEach(track => {
                 track.notes.forEach(note => {
-                    this.sampler.triggerAttackRelease(
-                        note.name,
-                        note.duration,
-                        now + note.time,
-                        note.velocity
-                    )
+                    notes.push({
+                        time: note.time,
+                        note: note.name,
+                        duration: note.duration,
+                        velocity: note.velocity
+                    })
                 })
             })
+
+            // Create Part
+            if (this.midiPart) {
+                this.midiPart.dispose()
+            }
+
+            this.midiPart = new Tone.Part((time, value) => {
+                this.sampler.triggerAttackRelease(
+                    value.note,
+                    value.duration,
+                    time,
+                    value.velocity
+                )
+            }, notes).start(0)
+
+            if (this.playbackState === 'playing') {
+                Tone.Transport.start()
+                console.log('Music started')
+            }
+
         } catch (e) {
             console.error('Failed to load MIDI', e)
         }
     }
 
     public stopMusic() {
-        // Stop all transport? We managed time manually.
-        // To stop, we'd need to cancel scheduled events or disconnect sampler.
-        // Tone.Transport.stop() if we used transport.
-        // Since we used manual scheduling on Context time, we can't easily "stop" 
-        // sounds that are already scheduled in the future in WebAudio without 
-        // keeping track of AudioBufferSourceNodes, which Sampler abstracts away.
-
-        // However, Tone.Transport allows scheduling.
-        // Let's refactor to use Tone.Transport for easier stopping if needed.
-        // But for KISS, and since we just want background music, maybe OK.
-
-        // Actually, we can just dispose and recreate sampler if we really need to stop hard.
-        // Or set volume to -Infinity.
-
-        // Let's use Tone.Transport for better control
+        this.playbackState = 'stopped'
+        Tone.Transport.stop()
+        if (this.midiPart) {
+            this.midiPart.stop() // Redundant with Transport stop but good practice
+            this.midiPart.dispose()
+            this.midiPart = null
+        }
+        this.sampler.releaseAll()
     }
 }

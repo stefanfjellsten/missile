@@ -14,6 +14,7 @@ export class Game {
     private audioManager: AudioManager
     private lastTime: number = 0
     private isRunning: boolean = false
+    private isGameOver: boolean = false
     private musicStarted: boolean = false
 
     private cities: City[] = []
@@ -37,6 +38,7 @@ export class Game {
         this.audioManager = new AudioManager()
         this.uiElement = document.getElementById('ui')!
         this.gameOverElement = document.getElementById('game-over')!
+        this.gameOverElement.style.display = 'none' // Initially hidden
 
         // Calculate field size
         const vFOV = THREE.MathUtils.degToRad(75)
@@ -245,8 +247,10 @@ export class Game {
         this.renderer.render()
         this.uiElement.innerText = `Cities: ${this.cities.length}`
 
-        if (this.cities.length === 0) {
+        if (this.cities.length === 0 && !this.isGameOver) {
+            this.isGameOver = true
             this.gameOverElement.style.display = 'block'
+            this.audioManager.stopMusic()
         }
     }
 }
