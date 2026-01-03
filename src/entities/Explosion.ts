@@ -1,19 +1,21 @@
 import * as THREE from 'three'
 import { Entity } from './Entity'
-import { Config } from '../game/Config'
+
 
 interface Particle {
     velocity: THREE.Vector3
 }
 
 export class Explosion implements Entity {
-    public mesh: THREE.Points
+    public mesh: THREE.Group
     public isAlive: boolean = true
     public x: number
     public y: number
     public radius: number = 0
 
     private particles: Particle[] = []
+    private points: THREE.Points
+    private shockwave: THREE.Mesh
     private maxLifetime: number = 60
     private lifetime: number = 0
 
@@ -28,17 +30,18 @@ export class Explosion implements Entity {
         const positions = []
         const colors = []
 
-        const color = new THREE.Color(Config.COLORS.EXPLOSION || 0xffaa00) // Fallback if config issues
+
 
         for (let i = 0; i < particleCount; i++) {
             positions.push(0, 0, 0) // Start at center relative to mesh
 
-            // Randomize color slightly?
-            colors.push(color.r, color.g, color.b)
+            // Start white/yellow
+            // We'll update colors in loop but init here
+            colors.push(1, 1, 0.8)
 
             // Random velocity (radial burst)
             const angle = Math.random() * Math.PI * 2
-            const speed = Math.random() * 3 + 1 // Fast burst
+            const speed = Math.random() * 4 + 2 // Faster burst
             const vx = Math.cos(angle) * speed
             const vy = Math.sin(angle) * speed
 
@@ -58,7 +61,24 @@ export class Explosion implements Entity {
             blending: THREE.AdditiveBlending // Optional, looks cool for explosions
         })
 
-        this.mesh = new THREE.Points(geometry, material)
+        this.points = new THREE.Points(geometry, material)
+
+        // Shockwave
+        const swGeo = new THREE.SphereGeometry(1, 32, 32)
+        const swMat = new THREE.MeshBasicMaterial({
+            color: 0xffaa00,
+            transparent: true,
+            opacity: 0.1,
+            depthWrite: false, // Don't block particles
+            blending: THREE.AdditiveBlending
+        })
+        this.shockwave = new THREE.Mesh(swGeo, swMat)
+        // Hide initially until non-zero
+        this.shockwave.visible = false
+
+        this.mesh = new THREE.Group()
+        this.mesh.add(this.points)
+        this.mesh.add(this.shockwave)
         this.mesh.position.set(x, y, 0)
     }
 
@@ -78,25 +98,60 @@ export class Explosion implements Entity {
         }
         if (this.radius < 0) this.radius = 0
 
+        // Update Shockwave
+        if (this.radius > 0) {
+            this.shockwave.visible = true
+            this.shockwave.scale.set(this.radius, this.radius, this.radius)
+            // Fade shockwave faster
+            const opacity = Math.max(0, 0.2 * (1 - this.lifetime / this.maxLifetime))
+                ; (this.shockwave.material as THREE.MeshBasicMaterial).opacity = opacity
+        }
+
 
         // Particle Update
-        const positions = this.mesh.geometry.attributes.position.array as Float32Array
+        const positions = this.points.geometry.attributes.position.array as Float32Array
+        const colors = this.points.geometry.attributes.color.array as Float32Array
 
-        // Fade out
-        (this.mesh.material as THREE.PointsMaterial).opacity = 1 - (this.lifetime / this.maxLifetime)
+        // Fade out slightly less aggressive to keep visibility
+        (this.points.material as THREE.PointsMaterial).opacity = Math.max(0, 1 - (this.lifetime / this.maxLifetime))
 
         for (let i = 0; i < this.particles.length; i++) {
             const v = this.particles[i].velocity
 
+            // Gravity
+            v.y -= 0.05
+
             // Move
             positions[i * 3] += v.x
             positions[i * 3 + 1] += v.y
-            positions[i * 3 + 2] += v.z // Still 0
 
-            // Drag / Deceleration
-            v.multiplyScalar(0.92)
+            // Drag
+            v.multiplyScalar(0.95)
+
+            // Color Evolution: White -> Yellow -> Red -> Dark
+            const t = this.lifetime / this.maxLifetime
+            let r = 1, g = 1, b = 1
+
+            if (t < 0.2) {
+                // White to Yellow
+                r = 1; g = 1; b = 1 - (t / 0.2) * 0.5; // b 1->0.5
+            } else if (t < 0.5) {
+                // Yellow to Orange
+                r = 1; g = 1 - ((t - 0.2) / 0.3); b = 0;
+                // g 1->0
+            } else {
+                // Orange to Red/Dark
+                r = 1; g = 0; b = 0;
+                // Maybe fade to gray? user wants fire. Red is fine.
+                // Let opacity handle fade.
+                r = 1 - ((t - 0.5) / 0.5); // Red fade
+            }
+            colors[i * 3] = r
+            colors[i * 3 + 1] = g
+            colors[i * 3 + 2] = b
         }
 
-        this.mesh.geometry.attributes.position.needsUpdate = true
+        this.points.geometry.attributes.position.needsUpdate = true
+        this.points.geometry.attributes.color.needsUpdate = true
     }
 }
