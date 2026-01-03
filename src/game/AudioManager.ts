@@ -56,7 +56,7 @@ export class AudioManager {
         // Noise synth for explosions
         this.explosionSynth = new Tone.NoiseSynth({
             noise: { type: "white" },
-            envelope: { attack: 0.005, decay: 0.5, sustain: 0 }
+            envelope: { attack: 0.005, decay: 0.5, sustain: 0.5 }
         }).toDestination()
         this.explosionSynth.volume.value = -5
     }

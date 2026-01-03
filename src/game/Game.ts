@@ -5,6 +5,7 @@ import { AudioManager } from './AudioManager'
 import { Missile } from '../entities/Missile'
 import { Explosion } from '../entities/Explosion'
 import { City } from '../entities/City'
+import { Silo } from '../entities/Silo'
 import * as THREE from 'three'
 
 export class Game {
@@ -18,6 +19,7 @@ export class Game {
     private cities: City[] = []
     private missiles: Missile[] = []
     private explosions: Explosion[] = []
+    private silo: Silo | null = null
 
     private enemySpawnTimer: number = 0
 
@@ -56,6 +58,10 @@ export class Game {
             this.cities.push(city)
             this.renderer.add(city.mesh)
         }
+
+        // Add Silo
+        this.silo = new Silo(0, -this.fieldHeight / 2 + 10)
+        this.renderer.add(this.silo.mesh)
     }
 
     public start() {
@@ -83,12 +89,18 @@ export class Game {
             this.spawnEnemyMissile()
         }
 
+        if (this.silo && this.input.mousePosition) {
+            this.silo.pointAt(this.input.mousePosition.x, this.input.mousePosition.y)
+        }
+
         // 2. Player Input
-        if (this.input.lastClick) {
+        if (this.input.lastClick && this.silo) {
             // Clamp click to screen bounds if needed, but raycaster usually handles map correctly
+            const startPos = this.silo.getTipPosition()
+
             const missile = new Missile(
-                0, // Center x
-                -this.fieldHeight / 2 + 10, // Bottom y
+                startPos.x, // Center x
+                startPos.y, // Bottom y
                 this.input.lastClick.x,
                 this.input.lastClick.y,
                 false

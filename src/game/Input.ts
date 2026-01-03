@@ -4,6 +4,7 @@ import { ThreeRenderer } from './ThreeRenderer'
 export class Input {
     private renderer: ThreeRenderer
     public lastClick: { x: number, y: number } | null = null
+    public mousePosition: { x: number, y: number } = { x: 0, y: 0 }
     private raycaster: THREE.Raycaster
     private mouse: THREE.Vector2
     private plane: THREE.Plane
@@ -15,6 +16,7 @@ export class Input {
         this.plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0) // Plane at Z=0 normal facing Camera
 
         this.renderer.renderer.domElement.addEventListener('click', (e) => this.handleClick(e))
+        this.renderer.renderer.domElement.addEventListener('mousemove', (e) => this.handleMouseMove(e))
     }
 
     private handleClick(e: MouseEvent) {
@@ -29,6 +31,22 @@ export class Input {
 
         if (target) {
             this.lastClick = { x: target.x, y: target.y }
+        }
+    }
+
+    private handleMouseMove(e: MouseEvent) {
+        // Shared logic with click, could refactor
+        const mouse = new THREE.Vector2()
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1
+
+        this.raycaster.setFromCamera(mouse, this.renderer.camera)
+
+        const target = new THREE.Vector3()
+        this.raycaster.ray.intersectPlane(this.plane, target)
+
+        if (target) {
+            this.mousePosition = { x: target.x, y: target.y }
         }
     }
 
