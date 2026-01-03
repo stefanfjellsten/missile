@@ -6,6 +6,7 @@ import { Missile } from '../entities/Missile'
 import { Explosion } from '../entities/Explosion'
 import { City } from '../entities/City'
 import { Silo } from '../entities/Silo'
+import { Environment } from './Environment'
 import * as THREE from 'three'
 
 export class Game {
@@ -21,6 +22,7 @@ export class Game {
     private missiles: Missile[] = []
     private explosions: Explosion[] = []
     private silo: Silo | null = null
+    private environment: Environment | null = null
 
     private enemySpawnTimer: number = 0
 
@@ -52,6 +54,10 @@ export class Game {
         const cityCount = 6
         const spacing = this.fieldWidth / (cityCount + 1)
         const startX = -this.fieldWidth / 2
+
+        // Add Environment
+        this.environment = new Environment(this.fieldWidth, this.fieldHeight)
+        this.renderer.add(this.environment.mesh)
 
         for (let i = 0; i < cityCount; i++) {
             const city = new City(startX + spacing * (i + 1))
