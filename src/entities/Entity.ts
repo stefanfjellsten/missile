@@ -1,7 +1,7 @@
-import { Renderer } from '../game/Renderer'
+import * as THREE from 'three'
 
 export interface Entity {
     update(): void
-    draw(renderer: Renderer): void
+    mesh: THREE.Object3D
     isAlive: boolean
 }

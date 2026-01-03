@@ -1,16 +1,19 @@
+import * as THREE from 'three'
 import { Entity } from './Entity'
-import { Renderer } from '../game/Renderer'
 import { Config } from '../game/Config'
 
 export class Missile implements Entity {
-    public x: number
-    public y: number
+    public mesh: THREE.Mesh
+    public isAlive: boolean = true
+    public isEnemy: boolean
+
     private targetX: number
     private targetY: number
     private speed: number
-    public color: string
-    public isAlive: boolean = true
-    public isEnemy: boolean
+
+    // Track position for logic
+    public x: number
+    public y: number
 
     constructor(startX: number, startY: number, targetX: number, targetY: number, isEnemy: boolean) {
         this.x = startX
@@ -19,7 +22,13 @@ export class Missile implements Entity {
         this.targetY = targetY
         this.isEnemy = isEnemy
         this.speed = isEnemy ? Config.MISSILE_SPEED : Config.PLAYER_MISSILE_SPEED
-        this.color = isEnemy ? Config.COLORS.MISSILE_ENEMY : Config.COLORS.MISSILE_PLAYER
+
+        const color = isEnemy ? Config.COLORS.MISSILE_ENEMY : Config.COLORS.MISSILE_PLAYER
+        const geometry = new THREE.SphereGeometry(2, 8, 8)
+        const material = new THREE.MeshBasicMaterial({ color })
+        this.mesh = new THREE.Mesh(geometry, material)
+
+        this.mesh.position.set(this.x, this.y, 0)
     }
 
     update() {
@@ -30,15 +39,12 @@ export class Missile implements Entity {
         if (distance < this.speed) {
             this.x = this.targetX
             this.y = this.targetY
-            this.isAlive = false // Reached target
+            this.isAlive = false
         } else {
             this.x += (dx / distance) * this.speed
             this.y += (dy / distance) * this.speed
         }
-    }
 
-    draw(renderer: Renderer) {
-        renderer.drawLine(this.x, this.y, this.x - (this.x - this.targetX) * 0.05, this.y - (this.y - this.targetY) * 0.05, this.color) // Trail (simplified)
-        renderer.drawCircle(this.x, this.y, 2, this.color)
+        this.mesh.position.set(this.x, this.y, 0)
     }
 }

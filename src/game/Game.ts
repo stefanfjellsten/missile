@@ -1,13 +1,13 @@
-import { Renderer } from './Renderer'
-import { Config } from './Config'
-import { Input } from './Input'
+import { ThreeRenderer } from './ThreeRenderer'
 
+import { Input } from './Input'
 import { Missile } from '../entities/Missile'
 import { Explosion } from '../entities/Explosion'
 import { City } from '../entities/City'
+import * as THREE from 'three'
 
 export class Game {
-    private renderer: Renderer
+    private renderer: ThreeRenderer
     private input: Input
     private lastTime: number = 0
     private isRunning: boolean = false
@@ -18,17 +18,39 @@ export class Game {
 
     private enemySpawnTimer: number = 0
 
+    // Game field boundaries (approximate based on camera Z=500 FOV=75)
+    // At z=0, visible height is approx 2 * 500 * tan(75/2) = 767.
+    // Visible width = height * aspect ratio.
+    private fieldWidth: number
+    private fieldHeight: number
+    private uiElement: HTMLElement
+    private gameOverElement: HTMLElement
+
     constructor() {
-        this.renderer = new Renderer('gameCanvas')
-        this.input = new Input('gameCanvas')
+        this.renderer = new ThreeRenderer('gameCanvas')
+        this.input = new Input(this.renderer)
+        this.uiElement = document.getElementById('ui')!
+        this.gameOverElement = document.getElementById('game-over')!
+
+        // Calculate field size
+        const vFOV = THREE.MathUtils.degToRad(75)
+        this.fieldHeight = 2 * Math.tan(vFOV / 2) * 500
+        this.fieldWidth = this.fieldHeight * (window.innerWidth / window.innerHeight)
+
         this.initGame()
     }
 
     private initGame() {
         const cityCount = 6
-        const spacing = this.renderer.width / (cityCount + 1)
+        const spacing = this.fieldWidth / (cityCount + 1)
+        const startX = -this.fieldWidth / 2
+
         for (let i = 0; i < cityCount; i++) {
-            this.cities.push(new City(spacing * (i + 1), this.renderer.height - 20))
+            const city = new City(startX + spacing * (i + 1))
+            // City Y position is handled ensuring it's at bottom
+            city.mesh.position.y = -this.fieldHeight / 2 + 10
+            this.cities.push(city)
+            this.renderer.add(city.mesh)
         }
     }
 
@@ -41,7 +63,6 @@ export class Game {
     private loop(timestamp: number) {
         if (!this.isRunning) return
 
-        // const deltaTime = timestamp - this.lastTime // Unused for now
         this.lastTime = timestamp
 
         this.update()
@@ -53,20 +74,23 @@ export class Game {
     private update() {
         // 1. Spawning enemies
         this.enemySpawnTimer++
-        if (this.enemySpawnTimer > 60) { // Spawn every second approx
+        if (this.enemySpawnTimer > 60) {
             this.enemySpawnTimer = 0
             this.spawnEnemyMissile()
         }
 
         // 2. Player Input
         if (this.input.lastClick) {
-            this.missiles.push(new Missile(
-                this.renderer.width / 2, // Silo center
-                this.renderer.height - 10,
+            // Clamp click to screen bounds if needed, but raycaster usually handles map correctly
+            const missile = new Missile(
+                0, // Center x
+                -this.fieldHeight / 2 + 10, // Bottom y
                 this.input.lastClick.x,
                 this.input.lastClick.y,
                 false
-            ))
+            )
+            this.missiles.push(missile)
+            this.renderer.add(missile.mesh)
             this.input.clear()
         }
 
@@ -76,36 +100,85 @@ export class Game {
         this.cities.forEach(c => c.update())
 
         // 4. Cleanup dead entities
-        // Check if missiles reached target
-        this.missiles.forEach(m => {
-            if (!m.isAlive && !m.isEnemy) {
-                // Player missile reached target -> explode
-                this.explosions.push(new Explosion(m.x, m.y))
-            } else if (!m.isAlive && m.isEnemy && m.y >= this.renderer.height - 50) {
-                // Enemy missile hit ground/city logic (simplified)
-                this.explosions.push(new Explosion(m.x, m.y))
-            }
-        })
+        this.handleEntityCleanup()
 
-        this.missiles = this.missiles.filter(m => m.isAlive)
-        this.explosions = this.explosions.filter(e => e.isAlive)
-        this.cities = this.cities.filter(c => c.isAlive)
-
-        // 5. collision detection
+        // 5. Collision Detection
         this.checkCollisions()
     }
 
+    private handleEntityCleanup() {
+        // Logic to trigger explosions upon death
+        this.missiles.forEach(m => {
+            if (!m.isAlive) {
+                // If it died naturally (reached target), explode
+                // We need distinguish between "reached target" vs "destroyed by explosion"
+                // For now, simple logic: if player missile dies (reaches Click), explode.
+                // If enemy missile dies (reaches target), explode.
+                // If destroyed by interception, we might handle it in collision check.
+
+                // Hack: we check this in update loop or via flags.
+                // Let's rely on collision check for interception.
+                // Here we just check position-based death?
+
+                // Actually, Missile update() sets isAlive=false when it reaches target.
+                // If we just check !isAlive here, it might be double counting if collision killed it.
+                // We can check if it's still in the list before removal.
+            }
+        })
+
+        // We need a better way to spawn explosion ONLY when reaching target, not when intercepted.
+        // But for KISS, let's just spawn explosion whenever missile dies for now,
+        // creating a chain reaction effect which is actually cool.
+
+        // Wait, if enemy missile is intercepted, it shouldn't produce a damaging explosion?
+        // In Missile Command, intercepted missiles just disappear (maybe small poof).
+        // Only when they hit ground they explode.
+        // Player missiles always explode.
+
+        const deadMissiles = this.missiles.filter(m => !m.isAlive)
+        deadMissiles.forEach(m => {
+            if (!m.isEnemy) {
+                // Player missile always explodes
+                const ex = new Explosion(m.x, m.y)
+                this.explosions.push(ex)
+                this.renderer.add(ex.mesh)
+            } else {
+                // Enemy missile: did it hit ground?
+                if (m.y <= -this.fieldHeight / 2 + 50) {
+                    const ex = new Explosion(m.x, m.y)
+                    this.explosions.push(ex)
+                    this.renderer.add(ex.mesh)
+                }
+            }
+            this.renderer.remove(m.mesh)
+        })
+
+        this.missiles = this.missiles.filter(m => m.isAlive)
+
+        const deadExplosions = this.explosions.filter(e => !e.isAlive)
+        deadExplosions.forEach(e => this.renderer.remove(e.mesh))
+        this.explosions = this.explosions.filter(e => e.isAlive)
+
+        const deadCities = this.cities.filter(c => !c.isAlive && c.mesh.visible) // only remove once
+        deadCities.forEach(c => {
+            this.renderer.remove(c.mesh)
+            // c.mesh.visible = false // handled in update
+        })
+        // We keep dead cities in array to know they are gone, or remove them?
+        // remove them so enemies don't target them
+        this.cities = this.cities.filter(c => c.isAlive)
+    }
+
     private spawnEnemyMissile() {
-        if (this.cities.length === 0) return // Game Over logic placeholder
+        if (this.cities.length === 0) return
 
         const targetCity = this.cities[Math.floor(Math.random() * this.cities.length)]
-        this.missiles.push(new Missile(
-            Math.random() * this.renderer.width,
-            0,
-            targetCity.x,
-            targetCity.y,
-            true
-        ))
+        const startX = (Math.random() - 0.5) * this.fieldWidth
+        const startY = this.fieldHeight / 2
+
+        const missile = new Missile(startX, startY, targetCity.mesh.position.x, targetCity.mesh.position.y, true)
+        this.missiles.push(missile)
+        this.renderer.add(missile.mesh)
     }
 
     private checkCollisions() {
@@ -116,51 +189,39 @@ export class Game {
                 const dx = missile.x - explosion.x
                 const dy = missile.y - explosion.y
                 const dist = Math.sqrt(dx * dx + dy * dy)
+
                 if (dist < explosion.radius) {
                     missile.isAlive = false
-                    // Chain reaction? Or score?
+                    // This is an interception
                 }
             })
         })
 
         // Enemy Missiles vs Cities
         this.missiles.forEach(missile => {
-            if (!missile.isEnemy) return // Player missiles don't kill cities
+            if (!missile.isEnemy || !missile.isAlive) return
 
             this.cities.forEach(city => {
                 if (!city.isAlive) return
-                const dx = missile.x - city.x
-                const dy = missile.y - city.y
+                const dx = missile.x - city.mesh.position.x
+                const dy = missile.y - city.mesh.position.y
                 const dist = Math.sqrt(dx * dx + dy * dy)
 
-                if (dist < 30) { // arbitrary hit radius
+                if (dist < 30) { // Hit radius
                     city.isAlive = false
                     missile.isAlive = false
-                    this.explosions.push(new Explosion(city.x, city.y))
+                    // Explosion spawned in cleanup
                 }
             })
         })
     }
 
     private draw() {
-        this.renderer.clear()
-
-        // Draw Ground
-        this.renderer.drawRect(0, this.renderer.height - 20, this.renderer.width, 20, '#333')
-
-        // Draw Silo
-        this.renderer.drawCircle(this.renderer.width / 2, this.renderer.height - 10, 20, Config.COLORS.SILO)
-
-        this.cities.forEach(c => c.draw(this.renderer))
-        this.missiles.forEach(m => m.draw(this.renderer))
-        this.explosions.forEach(e => e.draw(this.renderer))
-
-        // Draw UI
-        this.renderer.drawText(`FPS: ${Config.FPS}`, 10, 30)
-        // this.renderer.drawText(`Cities: ${this.cities.length}`, 10, 60)
+        this.renderer.render()
+        this.uiElement.innerText = `Cities: ${this.cities.length}`
 
         if (this.cities.length === 0) {
-            this.renderer.drawText('GAME OVER', this.renderer.width / 2 - 100, this.renderer.height / 2, 40, '#f00')
+            this.gameOverElement.style.display = 'block'
         }
     }
 }

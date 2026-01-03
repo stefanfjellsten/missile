@@ -1,14 +1,17 @@
+import * as THREE from 'three'
 import { Entity } from './Entity'
-import { Renderer } from '../game/Renderer'
 import { Config } from '../game/Config'
 
 export class Explosion implements Entity {
+    public mesh: THREE.Mesh
+    public isAlive: boolean = true
+
     public x: number
     public y: number
     public radius: number = 0
+
     private maxRadius: number
     private growthRate: number
-    public isAlive: boolean = true
     private expanding: boolean = true
 
     constructor(x: number, y: number) {
@@ -16,6 +19,11 @@ export class Explosion implements Entity {
         this.y = y
         this.maxRadius = Config.EXPLOSION_RADIUS
         this.growthRate = Config.EXPLOSION_GROWTH_RATE
+
+        const geometry = new THREE.SphereGeometry(1, 16, 16)
+        const material = new THREE.MeshBasicMaterial({ color: Config.COLORS.EXPLOSION, transparent: true, opacity: 0.8 })
+        this.mesh = new THREE.Mesh(geometry, material)
+        this.mesh.position.set(x, y, 0)
     }
 
     update() {
@@ -30,9 +38,7 @@ export class Explosion implements Entity {
                 this.isAlive = false
             }
         }
-    }
 
-    draw(renderer: Renderer) {
-        renderer.drawCircle(this.x, this.y, this.radius, Config.COLORS.EXPLOSION)
+        this.mesh.scale.set(this.radius, this.radius, this.radius)
     }
 }
