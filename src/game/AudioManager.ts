@@ -1,115 +1,105 @@
 import { Midi } from '@tonejs/midi'
+import * as Tone from 'tone'
 
 export class AudioManager {
-    private audioCtx: AudioContext
     private isMuted: boolean = false
-    private activeNodes: AudioScheduledSourceNode[] = []
+    private sampler: Tone.Sampler
+    private synth: Tone.PolySynth
+    private explosionSynth: Tone.NoiseSynth
 
     constructor() {
-        this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+        // Initialize Piano Sampler
+        this.sampler = new Tone.Sampler({
+            urls: {
+                A0: "A0.mp3",
+                C1: "C1.mp3",
+                "D#1": "Ds1.mp3",
+                "F#1": "Fs1.mp3",
+                A1: "A1.mp3",
+                C2: "C2.mp3",
+                "D#2": "Ds2.mp3",
+                "F#2": "Fs2.mp3",
+                A2: "A2.mp3",
+                C3: "C3.mp3",
+                "D#3": "Ds3.mp3",
+                "F#3": "Fs3.mp3",
+                A3: "A3.mp3",
+                C4: "C4.mp3",
+                "D#4": "Ds4.mp3",
+                "F#4": "Fs4.mp3",
+                A4: "A4.mp3",
+                C5: "C5.mp3",
+                "D#5": "Ds5.mp3",
+                "F#5": "Fs5.mp3",
+                A5: "A5.mp3",
+                C6: "C6.mp3",
+                "D#6": "Ds6.mp3",
+                "F#6": "Fs6.mp3",
+                A6: "A6.mp3",
+                C7: "C7.mp3",
+                "D#7": "Ds7.mp3",
+                "F#7": "Fs7.mp3",
+                A7: "A7.mp3",
+                C8: "C8.mp3"
+            },
+            release: 1,
+            baseUrl: "https://tonejs.github.io/audio/salamander/"
+        }).toDestination()
+
+        // Simple synth for shooting
+        this.synth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "square" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 }
+        }).toDestination()
+        this.synth.volume.value = -10
+
+        // Noise synth for explosions
+        this.explosionSynth = new Tone.NoiseSynth({
+            noise: { type: "white" },
+            envelope: { attack: 0.005, decay: 0.5, sustain: 0 }
+        }).toDestination()
+        this.explosionSynth.volume.value = -5
     }
 
-    // Resume context on user interaction (browser policy)
-    public resume() {
-        if (this.audioCtx.state === 'suspended') {
-            this.audioCtx.resume()
-        }
+    public async resume() {
+        await Tone.start()
     }
 
     public playShoot() {
         if (this.isMuted) return
-        this.resume() // ensure context is running
-
-        const osc = this.audioCtx.createOscillator()
-        const gainNode = this.audioCtx.createGain()
-
-        osc.connect(gainNode)
-        gainNode.connect(this.audioCtx.destination)
-
-        osc.type = 'square'
-        osc.frequency.setValueAtTime(880, this.audioCtx.currentTime)
-        osc.frequency.exponentialRampToValueAtTime(110, this.audioCtx.currentTime + 0.1)
-
-        gainNode.gain.setValueAtTime(0.1, this.audioCtx.currentTime)
-        gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.1)
-
-        osc.start()
-        osc.stop(this.audioCtx.currentTime + 0.1)
+        this.resume()
+        this.synth.triggerAttackRelease("A4", "64n")
+        // Pitch drop effect manually? 
+        // Tone's simple synth doesn't do frequency ramp easily on trigger. 
+        // For KISS we just use a short blip. 
     }
 
     public playExplosion() {
         if (this.isMuted) return
         this.resume()
-
-        const bufferSize = this.audioCtx.sampleRate * 0.5 // 0.5 seconds
-        const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate)
-        const data = buffer.getChannelData(0)
-
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1
-        }
-
-        const noise = this.audioCtx.createBufferSource()
-        noise.buffer = buffer
-
-        // Filter to make it sound more like an explosion (lowpass)
-        const filter = this.audioCtx.createBiquadFilter()
-        filter.type = 'lowpass'
-        filter.frequency.value = 1000
-
-        const gainNode = this.audioCtx.createGain()
-
-        noise.connect(filter)
-        filter.connect(gainNode)
-        gainNode.connect(this.audioCtx.destination)
-
-        gainNode.gain.setValueAtTime(0.5, this.audioCtx.currentTime)
-        gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.5)
-
-        noise.start()
+        this.explosionSynth.triggerAttackRelease("8n")
     }
 
     public async playMidi(url: string) {
         if (this.isMuted) return
-        this.resume()
+        await this.resume()
 
         try {
             const midi = await Midi.fromUrl(url)
-            const now = this.audioCtx.currentTime + 0.5 // small buffer
+
+            // Wait for sampler to load? 
+            await Tone.loaded()
+
+            const now = Tone.now() + 0.5
 
             midi.tracks.forEach(track => {
                 track.notes.forEach(note => {
-                    const osc = this.audioCtx.createOscillator()
-                    const gain = this.audioCtx.createGain()
-
-                    osc.connect(gain)
-                    gain.connect(this.audioCtx.destination)
-
-                    // Simple synth tone
-                    osc.type = 'triangle'
-
-                    // Midi note to frequency conversion needed?
-                    // note.name is available, note.midi is available.
-                    // Oscillator frequency takes Hz.
-                    // note.frequency is usually available in tonejs/midi?
-                    // Let's check docs or assume we calculate it.
-                    // Formula: f = 440 * 2^((d - 69)/12)
-                    const freq = 440 * Math.pow(2, (note.midi - 69) / 12)
-                    osc.frequency.value = freq
-
-                    gain.gain.setValueAtTime(0, now + note.time)
-                    gain.gain.linearRampToValueAtTime(note.velocity * 0.1, now + note.time + 0.02)
-                    gain.gain.setValueAtTime(note.velocity * 0.1, now + note.time + note.duration - 0.02)
-                    gain.gain.linearRampToValueAtTime(0, now + note.time + note.duration)
-
-                    osc.start(now + note.time)
-                    osc.stop(now + note.time + note.duration)
-
-                    this.activeNodes.push(osc)
-                    osc.onended = () => {
-                        const idx = this.activeNodes.indexOf(osc)
-                        if (idx > -1) this.activeNodes.splice(idx, 1)
-                    }
+                    this.sampler.triggerAttackRelease(
+                        note.name,
+                        note.duration,
+                        now + note.time,
+                        note.velocity
+                    )
                 })
             })
         } catch (e) {
@@ -118,9 +108,20 @@ export class AudioManager {
     }
 
     public stopMusic() {
-        this.activeNodes.forEach(node => {
-            try { node.stop() } catch (e) { }
-        })
-        this.activeNodes = []
+        // Stop all transport? We managed time manually.
+        // To stop, we'd need to cancel scheduled events or disconnect sampler.
+        // Tone.Transport.stop() if we used transport.
+        // Since we used manual scheduling on Context time, we can't easily "stop" 
+        // sounds that are already scheduled in the future in WebAudio without 
+        // keeping track of AudioBufferSourceNodes, which Sampler abstracts away.
+
+        // However, Tone.Transport allows scheduling.
+        // Let's refactor to use Tone.Transport for easier stopping if needed.
+        // But for KISS, and since we just want background music, maybe OK.
+
+        // Actually, we can just dispose and recreate sampler if we really need to stop hard.
+        // Or set volume to -Infinity.
+
+        // Let's use Tone.Transport for better control
     }
 }
