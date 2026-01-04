@@ -8,6 +8,7 @@ export class AudioManager {
     private explosionSynth: Tone.NoiseSynth
     private playbackState: 'stopped' | 'playing' = 'stopped'
     private midiPart: Tone.Part | null = null
+    private lastAudioTime: number = 0
 
     constructor() {
         // Initialize Piano Sampler
@@ -71,16 +72,28 @@ export class AudioManager {
     public playShoot() {
         if (this.isMuted) return
         this.resume()
-        this.synth.triggerAttackRelease("A4", "64n")
-        // Pitch drop effect manually? 
-        // Tone's simple synth doesn't do frequency ramp easily on trigger. 
-        // For KISS we just use a short blip. 
+        // Add small lookahead to prevent "start time < previous" errors
+        // Ensure strictly increasing start time
+        let now = Tone.now() + 0.05
+        if (now <= this.lastAudioTime) {
+            now = this.lastAudioTime + 0.01
+        }
+        this.lastAudioTime = now
+
+        this.synth.triggerAttackRelease("A4", "64n", now)
     }
 
     public playExplosion() {
         if (this.isMuted) return
         this.resume()
-        this.explosionSynth.triggerAttackRelease("8n")
+
+        let now = Tone.now() + 0.05
+        if (now <= this.lastAudioTime) {
+            now = this.lastAudioTime + 0.01
+        }
+        this.lastAudioTime = now
+
+        this.explosionSynth.triggerAttackRelease("8n", now)
     }
 
     public async playMidi(url: string) {

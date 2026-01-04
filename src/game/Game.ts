@@ -7,6 +7,7 @@ import { Explosion } from '../entities/Explosion'
 import { City } from '../entities/City'
 import { Silo } from '../entities/Silo'
 import { Environment } from './Environment'
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import * as THREE from 'three'
 
 export class Game {
@@ -17,12 +18,14 @@ export class Game {
     private isRunning: boolean = false
     private isGameOver: boolean = false
     private musicStarted: boolean = false
+    private isReady: boolean = false
 
     private cities: City[] = []
     private missiles: Missile[] = []
     private explosions: Explosion[] = []
     private silo: Silo | null = null
     private environment: Environment | null = null
+    private buildingModel: THREE.Group | null = null
 
     private enemySpawnTimer: number = 0
 
@@ -50,7 +53,18 @@ export class Game {
         this.initGame()
     }
 
-    private initGame() {
+    private async initGame() {
+        // Load Assets first
+        const loader = new FBXLoader()
+        this.buildingModel = await loader.loadAsync('/Building.fbx')
+
+        // Hide "Plane" if it exists (User request)
+        this.buildingModel.traverse((child) => {
+            if (child.name === 'Plane') {
+                child.visible = false
+            }
+        })
+
         const cityCount = 6
         const spacing = this.fieldWidth / (cityCount + 1)
         const startX = -this.fieldWidth / 2
@@ -60,7 +74,7 @@ export class Game {
         this.renderer.add(this.environment.mesh)
 
         for (let i = 0; i < cityCount; i++) {
-            const city = new City(startX + spacing * (i + 1))
+            const city = new City(startX + spacing * (i + 1), this.buildingModel!)
             // City Y position is handled ensuring it's at bottom
             city.mesh.position.y = -this.fieldHeight / 2 + 10
             this.cities.push(city)
@@ -70,9 +84,21 @@ export class Game {
         // Add Silo
         this.silo = new Silo(0, -this.fieldHeight / 2 + 10)
         this.renderer.add(this.silo.mesh)
+
+        this.isReady = true
     }
 
     public start() {
+        // Wait for ready if start called immediately
+        this.waitForReady()
+    }
+
+    private waitForReady() {
+        if (!this.isReady) {
+            requestAnimationFrame(() => this.waitForReady())
+            return
+        }
+
         this.isRunning = true
         this.lastTime = performance.now()
         this.loop(this.lastTime)
@@ -191,13 +217,16 @@ export class Game {
         deadExplosions.forEach(e => this.renderer.remove(e.mesh))
         this.explosions = this.explosions.filter(e => e.isAlive)
 
-        const deadCities = this.cities.filter(c => !c.isAlive && c.mesh.visible) // only remove once
+        const deadCities = this.cities.filter(c => !c.isAlive)
         deadCities.forEach(c => {
-            this.renderer.remove(c.mesh)
-            // c.mesh.visible = false // handled in update
+            if (c.mesh.visible) { // Check if not already cleaned
+                this.renderer.remove(c.mesh)
+                // Spawn Explosion
+                const ex = new Explosion(c.mesh.position.x, c.mesh.position.y)
+                this.explosions.push(ex)
+                this.renderer.add(ex.mesh)
+            }
         })
-        // We keep dead cities in array to know they are gone, or remove them?
-        // remove them so enemies don't target them
         this.cities = this.cities.filter(c => c.isAlive)
     }
 
