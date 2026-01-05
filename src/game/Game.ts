@@ -3,11 +3,13 @@ import { ThreeRenderer } from './ThreeRenderer'
 import { Input } from './Input'
 import { AudioManager } from './AudioManager'
 import { Missile } from '../entities/Missile'
+import { Trail } from '../entities/Trail'
 import { Explosion } from '../entities/Explosion'
 import { City } from '../entities/City'
 import { Silo } from '../entities/Silo'
 import { Environment } from './Environment'
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import * as THREE from 'three'
 
 export class Game {
@@ -26,6 +28,8 @@ export class Game {
     private silo: Silo | null = null
     private environment: Environment | null = null
     private buildingModel: THREE.Group | null = null
+    private missileModel: THREE.Group | null = null
+    private dyingTrails: Trail[] = []
 
     private enemySpawnTimer: number = 0
 
@@ -46,8 +50,8 @@ export class Game {
         this.gameOverElement.style.display = 'none' // Initially hidden
 
         // Calculate field size
-        const vFOV = THREE.MathUtils.degToRad(75)
-        this.fieldHeight = 2 * Math.tan(vFOV / 2) * 500
+        // Tied to Ortho frustum size set in ThreeRenderer (1000)
+        this.fieldHeight = 1000
         this.fieldWidth = this.fieldHeight * (window.innerWidth / window.innerHeight)
 
         this.initGame()
@@ -62,6 +66,31 @@ export class Game {
         this.buildingModel.traverse((child) => {
             if (child.name === 'Plane') {
                 child.visible = false
+            }
+        })
+
+        const gltfLoader = new GLTFLoader()
+        const gltf = await gltfLoader.loadAsync('/AIM.glb')
+        this.missileModel = gltf.scene
+
+        // Use Basic material to avoid lighting artifacts (strange rotation)
+        // Center the model to fix pivot
+        const box = new THREE.Box3().setFromObject(this.missileModel)
+        const center = box.getCenter(new THREE.Vector3())
+        this.missileModel.position.x -= center.x
+        this.missileModel.position.y -= center.y
+        this.missileModel.position.z -= center.z
+
+        // Use Basic material to avoid lighting artifacts (strange rotation)
+        this.missileModel.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                // Keep texture and color if possible
+                const originalMaterial = child.material as THREE.MeshStandardMaterial
+                const newMaterial = new THREE.MeshBasicMaterial({
+                    map: originalMaterial.map,
+                    color: originalMaterial.color
+                })
+                child.material = newMaterial
             }
         })
 
@@ -141,6 +170,7 @@ export class Game {
             )
             this.missiles.push(missile)
             this.renderer.add(missile.mesh)
+            this.renderer.add(missile.trail.mesh)
             this.input.clear()
             this.audioManager.playShoot()
 
@@ -154,6 +184,19 @@ export class Game {
         this.missiles.forEach(m => m.update())
         this.explosions.forEach(e => e.update())
         this.cities.forEach(c => c.update())
+
+        // Update failing/dying trails
+        this.dyingTrails.forEach(t => t.update())
+        // Cleanup empty trails
+        const activeTrails: Trail[] = []
+        this.dyingTrails.forEach(t => {
+            if (t.isEmpty()) {
+                this.renderer.remove(t.mesh)
+            } else {
+                activeTrails.push(t)
+            }
+        })
+        this.dyingTrails = activeTrails
 
         // 4. Cleanup dead entities
         this.handleEntityCleanup()
@@ -209,6 +252,8 @@ export class Game {
                 }
             }
             this.renderer.remove(m.mesh)
+            // Detach trail to die gracefully
+            this.dyingTrails.push(m.trail)
         })
 
         this.missiles = this.missiles.filter(m => m.isAlive)
@@ -237,9 +282,10 @@ export class Game {
         const startX = (Math.random() - 0.5) * this.fieldWidth
         const startY = this.fieldHeight / 2
 
-        const missile = new Missile(startX, startY, targetCity.mesh.position.x, targetCity.mesh.position.y, true)
+        const missile = new Missile(startX, startY, targetCity.mesh.position.x, targetCity.mesh.position.y, true, this.missileModel!)
         this.missiles.push(missile)
         this.renderer.add(missile.mesh)
+        this.renderer.add(missile.trail.mesh)
     }
 
     private checkCollisions() {

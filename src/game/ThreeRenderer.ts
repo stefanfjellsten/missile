@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 export class ThreeRenderer {
     public scene: THREE.Scene
-    public camera: THREE.PerspectiveCamera
+    public camera: THREE.OrthographicCamera
     public renderer: THREE.WebGLRenderer
 
     constructor(canvasId: string) {
@@ -11,9 +11,21 @@ export class ThreeRenderer {
         this.scene = new THREE.Scene()
         this.scene.background = new THREE.Color(0x111111)
 
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-        this.camera.position.z = 500
-        this.camera.position.y = 250 // Look a bit down
+        // Ortho size: Let's fix height to 1000 units? Or dynamic.
+        // Let's match roughly the visible area we had at Z=600 with FOV 75.
+        // Height ~ 2 * tan(75/2) * 600 = ~920
+        const frustumSize = 1000
+        const aspect = window.innerWidth / window.innerHeight
+        this.camera = new THREE.OrthographicCamera(
+            frustumSize * aspect / -2,
+            frustumSize * aspect / 2,
+            frustumSize / 2,
+            frustumSize / -2,
+            0.1,
+            2000
+        )
+        this.camera.position.z = 600
+        this.camera.position.y = 0
         this.camera.lookAt(0, 0, 0)
 
         this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
@@ -32,7 +44,14 @@ export class ThreeRenderer {
     }
 
     private resize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight
+        const frustumSize = 1000
+        const aspect = window.innerWidth / window.innerHeight
+
+        this.camera.left = -frustumSize * aspect / 2
+        this.camera.right = frustumSize * aspect / 2
+        this.camera.top = frustumSize / 2
+        this.camera.bottom = -frustumSize / 2
+
         this.camera.updateProjectionMatrix()
         this.renderer.setSize(window.innerWidth, window.innerHeight)
     }
