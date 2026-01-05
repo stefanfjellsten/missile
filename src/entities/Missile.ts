@@ -30,8 +30,8 @@ export class Missile implements Entity {
 
         if (isEnemy && model) {
             const m = model.clone()
-            m.scale.set(3, 3, 3)
-            m.rotation.set(0, Math.PI / 2, 0)
+            m.scale.set(1, 1, 1)
+            m.rotation.set(0, Math.PI / 2, Math.PI / 2)
             this.mesh.add(m)
         } else {
             const color = isEnemy ? Config.COLORS.MISSILE_ENEMY : Config.COLORS.MISSILE_PLAYER
@@ -53,8 +53,12 @@ export class Missile implements Entity {
         const dy = this.targetY - this.y
         const distance = Math.sqrt(dx * dx + dy * dy)
 
-        // Emit trail
-        this.trail.emit(this.x, this.y, 0)
+        // Emit trail from tail
+        const distSafe = distance > 0 ? distance : 1
+        const vx = dx / distSafe
+        const vy = dy / distSafe
+        const offset = 85 // Adjust based on missile length
+        this.trail.emit(this.x - vx * offset - 2.5, this.y - vy * offset, 0)
         this.trail.update()
 
         if (distance < this.speed) {
