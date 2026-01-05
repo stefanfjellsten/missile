@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { Entity } from './Entity'
-import { Config } from '../game/Config'
+import { Config, PowerUpType } from '../game/Config'
 import { Trail } from './Trail'
 
 export class Missile implements Entity {
@@ -8,6 +8,7 @@ export class Missile implements Entity {
     public trail: Trail
     public isAlive: boolean = true
     public isEnemy: boolean
+    public powerUpType: PowerUpType = PowerUpType.NONE
 
     private targetX: number
     private targetY: number
@@ -25,6 +26,11 @@ export class Missile implements Entity {
         this.isEnemy = isEnemy
         this.speed = isEnemy ? Config.MISSILE_SPEED : Config.PLAYER_MISSILE_SPEED
 
+        // Randomly assign power-up to enemy missiles (10% chance)
+        if (isEnemy && Math.random() < 0.1) {
+            this.powerUpType = PowerUpType.BIG_BLAST
+        }
+
         this.trail = new Trail()
         this.mesh = new THREE.Group()
 
@@ -33,6 +39,15 @@ export class Missile implements Entity {
             m.scale.set(1, 1, 1)
             m.rotation.set(0, Math.PI / 2, Math.PI / 2)
             this.mesh.add(m)
+
+            if (this.powerUpType !== PowerUpType.NONE) {
+                // Visual Indicator
+                const geom = new THREE.SphereGeometry(10, 8, 8)
+                const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff }) // Cyan
+                const orb = new THREE.Mesh(geom, mat)
+                orb.position.set(0, 10, 0) // Attached to missile body
+                this.mesh.add(orb)
+            }
         } else {
             const color = isEnemy ? Config.COLORS.MISSILE_ENEMY : Config.COLORS.MISSILE_PLAYER
             const geometry = new THREE.SphereGeometry(2, 8, 8)

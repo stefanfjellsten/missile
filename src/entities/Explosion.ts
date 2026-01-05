@@ -19,13 +19,16 @@ export class Explosion implements Entity {
     private maxLifetime: number = 60
     private lifetime: number = 0
 
-    constructor(x: number, y: number) {
+    private radiusMultiplier: number = 1
+
+    constructor(x: number, y: number, radiusMultiplier: number = 1) {
         this.x = x
         this.y = y
+        this.radiusMultiplier = radiusMultiplier
         // Maintain logical max radius for collision from Config if possible, 
         // or just approximate it. Legacy was Config.EXPLOSION_RADIUS (e.g. 30-50).
 
-        const particleCount = 400
+        const particleCount = 400 * radiusMultiplier
         const geometry = new THREE.BufferGeometry()
         const positions = []
         const colors = []
@@ -41,7 +44,7 @@ export class Explosion implements Entity {
 
             // Random velocity (radial burst)
             const angle = Math.random() * Math.PI * 2
-            const speed = Math.random() * 4 + 2 // Faster burst
+            const speed = (Math.random() * 4 + 2) * radiusMultiplier // Faster burst
             const vx = Math.cos(angle) * speed
             const vy = Math.sin(angle) * speed
 
@@ -92,7 +95,7 @@ export class Explosion implements Entity {
         // Logic Radius update (fade in/out for collision)
         // Simulate the previous expanding sphere logic roughly
         if (this.lifetime < 10) {
-            this.radius += 3
+            this.radius += 3 * this.radiusMultiplier
         } else if (this.lifetime > 40) {
             this.radius -= 1
         }

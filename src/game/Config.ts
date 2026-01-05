@@ -1,3 +1,8 @@
+export enum PowerUpType {
+    NONE,
+    BIG_BLAST
+}
+
 export const Config = {
     CANVAS_WIDTH: window.innerWidth,
     CANVAS_HEIGHT: window.innerHeight,

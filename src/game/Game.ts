@@ -4,6 +4,7 @@ import { Input } from './Input'
 import { AudioManager } from './AudioManager'
 import { Missile } from '../entities/Missile'
 import { Trail } from '../entities/Trail'
+import { Config, PowerUpType } from './Config'
 import { Explosion } from '../entities/Explosion'
 import { City } from '../entities/City'
 import { Silo } from '../entities/Silo'
@@ -30,6 +31,9 @@ export class Game {
     private buildingModel: THREE.Group | null = null
     private missileModel: THREE.Group | null = null
     private dyingTrails: Trail[] = []
+
+    private activePowerUp: PowerUpType = PowerUpType.NONE
+    private powerUpTimer: number = 0
 
     private enemySpawnTimer: number = 0
 
@@ -133,6 +137,11 @@ export class Game {
         this.loop(this.lastTime)
     }
 
+    private ActivatePowerUp(type: PowerUpType) {
+        this.activePowerUp = type
+        this.powerUpTimer = 600 // 10 seconds @ 60fps
+    }
+
     private loop(timestamp: number) {
         if (!this.isRunning) return
 
@@ -145,6 +154,13 @@ export class Game {
     }
 
     private update() {
+        if (this.powerUpTimer > 0) {
+            this.powerUpTimer--
+            if (this.powerUpTimer <= 0) {
+                this.activePowerUp = PowerUpType.NONE
+            }
+        }
+
         // 1. Spawning enemies
         this.enemySpawnTimer++
         if (this.enemySpawnTimer > 60) {
@@ -238,7 +254,8 @@ export class Game {
         deadMissiles.forEach(m => {
             if (!m.isEnemy) {
                 // Player missile always explodes
-                const ex = new Explosion(m.x, m.y)
+                const radiusMultiplier = this.activePowerUp === PowerUpType.BIG_BLAST ? 3 : 1
+                const ex = new Explosion(m.x, m.y, radiusMultiplier)
                 this.explosions.push(ex)
                 this.renderer.add(ex.mesh)
                 this.audioManager.playExplosion()
@@ -298,6 +315,10 @@ export class Game {
                 const dist = Math.sqrt(dx * dx + dy * dy)
 
                 if (dist < explosion.radius) {
+                    // Activate powerup if present
+                    if (missile.powerUpType !== PowerUpType.NONE) {
+                        this.ActivatePowerUp(missile.powerUpType)
+                    }
                     missile.isAlive = false
                     // This is an interception
                 }
@@ -326,7 +347,11 @@ export class Game {
 
     private draw() {
         this.renderer.render()
-        this.uiElement.innerText = `Cities: ${this.cities.length}`
+        let status = `Cities: ${this.cities.length}`
+        if (this.activePowerUp === PowerUpType.BIG_BLAST) {
+            status += ` | BIG BLAST ACTIVE (${Math.ceil(this.powerUpTimer / 60)})`
+        }
+        this.uiElement.innerText = status
 
         if (this.cities.length === 0 && !this.isGameOver) {
             this.isGameOver = true
