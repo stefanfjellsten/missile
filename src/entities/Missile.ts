@@ -72,8 +72,12 @@ export class Missile implements Entity {
         const distSafe = distance > 0 ? distance : 1
         const vx = dx / distSafe
         const vy = dy / distSafe
-        const offset = 85 // Adjust based on missile length
-        this.trail.emit(this.x - vx * offset - 2.5, this.y - vy * offset, 0)
+
+        // Offset depends on model: Enemy uses long 3D model (85), Player uses small sphere (2)
+        const offset = this.isEnemy ? 85 : 2
+        const xOffset = this.isEnemy ? -2.5 : 0 // Fine tune 3D model x-offset
+
+        this.trail.emit(this.x - vx * offset + xOffset, this.y - vy * offset, 0)
         this.trail.update()
 
         if (distance < this.speed) {
