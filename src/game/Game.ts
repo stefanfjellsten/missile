@@ -48,15 +48,20 @@ export class Game {
     private fieldWidth: number
     private fieldHeight: number
     private uiElement: HTMLElement
-    private gameOverElement: HTMLElement
+    private endScreen: HTMLElement
+    private endTitle: HTMLElement
+    private endScore: HTMLElement
+    private endTime: HTMLElement
 
     constructor() {
         this.renderer = new ThreeRenderer('gameCanvas')
         this.input = new Input(this.renderer)
         this.audioManager = new AudioManager()
         this.uiElement = document.getElementById('ui')!
-        this.gameOverElement = document.getElementById('game-over')!
-        this.gameOverElement.style.display = 'none' // Initially hidden
+        this.endScreen = document.getElementById('end-screen')!
+        this.endTitle = document.getElementById('end-title')!
+        this.endScore = document.getElementById('end-score')!
+        this.endTime = document.getElementById('end-time')!
 
         // Calculate field size
         // Tied to Ortho frustum size set in ThreeRenderer (1000)
@@ -172,11 +177,10 @@ export class Game {
         this.timeLeft -= (dt * 16.67) / 1000 // decreasing seconds
         if (this.timeLeft <= 0) {
             this.timeLeft = 0
-            this.isGameOver = true
-            this.uiElement.innerText = "MISSION COMPLETE - SCORE: " + this.score
-            this.gameOverElement.innerText = "MISSION COMPLETE"
-            this.gameOverElement.style.display = 'block'
-            this.audioManager.stopMusic()
+            if (!this.isGameOver) {
+                this.isGameOver = true
+                this.showEndScreen("MISSION COMPLETE", "gold")
+            }
             return
         }
 
@@ -448,10 +452,20 @@ export class Game {
 
         if (this.cities.length === 0 && !this.isGameOver) {
             this.isGameOver = true
-            this.gameOverElement.innerText = "GAME OVER"
-            this.gameOverElement.style.display = 'block'
-            this.audioManager.stopMusic()
+            this.showEndScreen("GAME OVER", "red")
         }
+    }
+
+    private showEndScreen(title: string, color: string) {
+        this.endTitle.innerText = title
+        this.endTitle.style.color = color
+        this.endTitle.style.textShadow = `0 0 20px ${color}`
+        this.endScore.innerText = this.score.toString()
+        const timeSurvived = Math.floor(120 - this.timeLeft)
+        this.endTime.innerText = timeSurvived.toString()
+
+        this.endScreen.style.display = 'flex'
+        this.audioManager.stopMusic()
     }
     private firePlayerMissile(targetX: number, targetY: number, isRailGun: boolean) {
         if (!this.silo) return
