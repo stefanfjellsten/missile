@@ -65,7 +65,7 @@ export class Game {
     private async initGame() {
         // Load Assets first
         const loader = new FBXLoader()
-        this.buildingModel = await loader.loadAsync('/Building.fbx')
+        this.buildingModel = await loader.loadAsync('Building.fbx')
 
         // Hide "Plane" if it exists (User request)
         this.buildingModel.traverse((child) => {
@@ -75,7 +75,7 @@ export class Game {
         })
 
         const gltfLoader = new GLTFLoader()
-        const gltf = await gltfLoader.loadAsync('/AIM.glb')
+        const gltf = await gltfLoader.loadAsync('AIM.glb')
         this.missileModel = gltf.scene
 
         // Use Basic material to avoid lighting artifacts (strange rotation)
@@ -405,7 +405,7 @@ export class Game {
 
         if (!this.musicStarted) {
             this.musicStarted = true
-            this.audioManager.playMidi('/Beethoven-Moonlight-Sonata.mid')
+            this.audioManager.playMidi('Beethoven-Moonlight-Sonata.mid')
         }
     }
 }
