@@ -35,7 +35,7 @@ export class Missile implements Entity {
 
         if (isEnemy && model) {
             const m = model.clone()
-            m.scale.set(1, 1, 1)
+            m.scale.set(0.75, 0.75, 0.75)
             m.rotation.set(0, Math.PI / 2, Math.PI / 2)
             this.mesh.add(m)
 
@@ -73,9 +73,9 @@ export class Missile implements Entity {
         const vx = dx / distSafe
         const vy = dy / distSafe
 
-        // Offset depends on model: Enemy uses long 3D model (85), Player uses small sphere (2)
-        const offset = this.isEnemy ? 85 : 2
-        const xOffset = this.isEnemy ? -2.5 : 0 // Fine tune 3D model x-offset
+        // Offset depends on model: Enemy uses long 3D model (scaled 0.75 -> ~65), Player uses small sphere (2)
+        const offset = this.isEnemy ? 65 : 2
+        const xOffset = this.isEnemy ? -2.0 : 0 // Fine tune 3D model x-offset
 
         this.trail.emit(this.x - vx * offset + xOffset, this.y - vy * offset, 0)
         this.trail.update()
@@ -90,5 +90,52 @@ export class Missile implements Entity {
         }
 
         this.mesh.position.set(this.x, this.y, 0)
+    }
+
+
+    public checkCollision(cx: number, cy: number, radius: number): boolean {
+        // Simple point check for player
+        if (!this.isEnemy) {
+            const dx = this.x - cx
+            const dy = this.y - cy
+            return (dx * dx + dy * dy) < (radius * radius)
+        }
+
+        // Segment check for enemy
+        const dx = this.targetX - this.x
+        const dy = this.targetY - this.y
+        const len = Math.sqrt(dx * dx + dy * dy)
+        const distSafe = len > 0 ? len : 1
+        const vx = dx / distSafe
+        const vy = dy / distSafe
+
+        // Segment from Head(x,y) to Tail
+        // Length of missile approx 65
+        const missileLen = 65
+        const tailX = this.x - vx * missileLen
+        const tailY = this.y - vy * missileLen
+
+        // Vector from Tail to Head
+        const segX = this.x - tailX
+        const segY = this.y - tailY
+        // Vector from Tail to Circle Center
+        const ptX = cx - tailX
+        const ptY = cy - tailY
+
+        const segLenSq = segX * segX + segY * segY
+        if (segLenSq <= 0) return false
+
+        // Project point onto line, clamped 0..1
+        let t = (ptX * segX + ptY * segY) / segLenSq
+        t = Math.max(0, Math.min(1, t))
+
+        // Closest point on segment
+        const closestX = tailX + t * segX
+        const closestY = tailY + t * segY
+
+        const distX = cx - closestX
+        const distY = cy - closestY
+
+        return (distX * distX + distY * distY) < (radius * radius)
     }
 }

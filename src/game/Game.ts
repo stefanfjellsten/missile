@@ -321,11 +321,7 @@ export class Game {
                     return
                 }
 
-                const dx = missile.x - explosion.x
-                const dy = missile.y - explosion.y
-                const dist = Math.sqrt(dx * dx + dy * dy)
-
-                if (dist < explosion.radius) {
+                if (missile.checkCollision(explosion.x, explosion.y, explosion.radius)) {
                     // Activate powerup if present
                     if (missile.powerUpType !== PowerUpType.NONE) {
                         this.ActivatePowerUp(missile.powerUpType)
