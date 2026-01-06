@@ -190,7 +190,29 @@ export class Game {
         }
 
         // 3. Update Entities
-        this.missiles.forEach(m => m.update())
+        this.missiles.forEach(m => {
+            m.update()
+
+            // Retargeting logic for Heat Seeker
+            if (!m.isEnemy && m.powerUpType === PowerUpType.HEAT_SEEKER && (!m.lockedTarget || !m.lockedTarget.isAlive)) {
+                let minDist = Infinity
+                let newTarget: Missile | null = null
+                this.missiles.forEach(enemy => {
+                    if (enemy.isEnemy && enemy.isAlive) {
+                        const dx = enemy.x - m.x
+                        const dy = enemy.y - m.y
+                        const dist = dx * dx + dy * dy
+                        if (dist < minDist) {
+                            minDist = dist
+                            newTarget = enemy
+                        }
+                    }
+                })
+                if (newTarget) {
+                    m.lockedTarget = newTarget
+                }
+            }
+        })
         this.explosions.forEach(e => e.update())
         this.cities.forEach(c => c.update())
 
@@ -366,6 +388,8 @@ export class Game {
             status += ` | BIG BLAST ACTIVE (${Math.ceil(this.powerUpTimer / 60)})`
         } else if (this.activePowerUp === PowerUpType.RAIL_GUN) {
             status += ` | RAIL GUN ACTIVE (${Math.ceil(this.powerUpTimer / 60)})`
+        } else if (this.activePowerUp === PowerUpType.HEAT_SEEKER) {
+            status += ` | HEAT SEEKER ACTIVE (${Math.ceil(this.powerUpTimer / 60)})`
         }
         this.uiElement.innerText = status
 
@@ -379,12 +403,39 @@ export class Game {
         if (!this.silo) return
         const startPos = this.silo.getTipPosition()
 
+        let lockedTarget: Missile | undefined
+        if (this.activePowerUp === PowerUpType.HEAT_SEEKER) {
+            let minDist = Infinity
+            const searchX = targetX
+            const searchY = targetY
+            const maxLockDistSq = 300 * 300 // Only lock if relatively close to click
+
+            this.missiles.forEach(m => {
+                if (m.isEnemy && m.isAlive) {
+                    const dx = m.x - searchX
+                    const dy = m.y - searchY
+                    const dist = dx * dx + dy * dy
+                    if (dist < minDist && dist < maxLockDistSq) {
+                        minDist = dist
+                        lockedTarget = m
+                    }
+                }
+            })
+
+            if (lockedTarget) {
+                targetX = lockedTarget.x
+                targetY = lockedTarget.y
+            }
+        }
+
         const missile = new Missile(
             startPos.x,
             startPos.y,
             targetX,
             targetY,
-            false
+            false,
+            undefined,
+            lockedTarget
         )
 
         if (isRailGun) {

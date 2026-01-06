@@ -1,7 +1,8 @@
 export enum PowerUpType {
-    NONE,
-    BIG_BLAST,
-    RAIL_GUN
+    NONE = 'NONE',
+    BIG_BLAST = 'BIG_BLAST',
+    RAIL_GUN = 'RAIL_GUN',
+    HEAT_SEEKER = 'HEAT_SEEKER'
 }
 
 export const Config = {
