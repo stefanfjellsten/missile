@@ -10,7 +10,7 @@ export const Config = {
     CANVAS_HEIGHT: window.innerHeight,
     FPS: 60,
     GRAVITY: 0.05,
-    MISSILE_SPEED: 1,
+    MISSILE_SPEED: 0.8,
     PLAYER_MISSILE_SPEED: 10,
     EXPLOSION_RADIUS: 50,
     EXPLOSION_GROWTH_RATE: 1,

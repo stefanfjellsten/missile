@@ -34,9 +34,13 @@ export class Game {
 
     private activePowerUp: PowerUpType = PowerUpType.NONE
     private powerUpTimer: number = 0
+    private planetDefenceAvailable: boolean = true
 
     private enemySpawnTimer: number = 0
     private frameCounter: number = 0
+    private score: number = 0
+    private timeLeft: number = 120 // 2 minutes in seconds
+    private difficultyMultiplier: number = 0.1
 
     // Game field boundaries (approximate based on camera Z=500 FOV=75)
     // At z=0, visible height is approx 2 * 500 * tan(75/2) = 767.
@@ -164,9 +168,25 @@ export class Game {
             }
         }
 
+        // Difficulty & Time
+        this.timeLeft -= (dt * 16.67) / 1000 // decreasing seconds
+        if (this.timeLeft <= 0) {
+            this.timeLeft = 0
+            this.isGameOver = true
+            this.uiElement.innerText = "MISSION COMPLETE - SCORE: " + this.score
+            this.gameOverElement.innerText = "MISSION COMPLETE"
+            this.gameOverElement.style.display = 'block'
+            this.audioManager.stopMusic()
+            return
+        }
+
+        // Linear difficulty increase
+        this.difficultyMultiplier += 0.0005 * dt
+
         // 1. Spawning enemies
-        this.enemySpawnTimer++
-        if (this.enemySpawnTimer > 60) {
+        this.enemySpawnTimer += dt // use dt for independent timing
+        const spawnThreshold = 60 / this.difficultyMultiplier // spawn faster
+        if (this.enemySpawnTimer > spawnThreshold) {
             this.enemySpawnTimer = 0
             this.spawnEnemyMissile()
         }
@@ -188,6 +208,20 @@ export class Game {
             // Clamp click to screen bounds if needed, but raycaster usually handles map correctly
             this.firePlayerMissile(this.input.lastClick.x, this.input.lastClick.y, false)
             this.input.clear()
+        }
+
+        // Planet Defence
+        if (this.input.triggerPlanetDefence && this.planetDefenceAvailable) {
+            this.planetDefenceAvailable = false
+            this.input.triggerPlanetDefence = false // consume
+
+            // Mega Blast
+            const ex = new Explosion(0, -this.fieldHeight / 2, 50) // 50x radius to cover full screen
+            this.explosions.push(ex)
+            this.renderer.add(ex.mesh)
+
+            this.renderer.triggerShake(60, 30) // Massive shake
+            this.audioManager.playExplosion() // Sound
         }
 
         // 3. Update Entities
@@ -337,6 +371,10 @@ export class Game {
         this.missiles.push(missile)
         this.renderer.add(missile.mesh)
         this.renderer.add(missile.trail.mesh)
+
+            // Difficulty Speed Impact
+            // Scale speed by difficulty
+            ; (missile as any).speed *= this.difficultyMultiplier
     }
 
     private checkCollisions() {
@@ -355,9 +393,18 @@ export class Game {
                     if (missile.powerUpType !== PowerUpType.NONE) {
                         this.ActivatePowerUp(missile.powerUpType)
                     }
-                    missile.isAlive = false
-                    missile.killedByExplosion = true
-                    // This is an interception
+
+                    if (missile.takeDamage()) {
+                        missile.isAlive = false
+                        missile.killedByExplosion = true
+
+                        // Score: 1 point * cities (base) -> Let's say 100 * cities
+                        this.score += 100 * (this.cities.length + (this.silo?.isAlive ? 1 : 0))
+                        if (missile.isBoss) this.score += 500
+                    } else {
+                        // Impact but not dead (Boss)
+                        // Maybe spawn a small 'hit' explosion visual?
+                    }
                 }
             })
         })
@@ -386,18 +433,22 @@ export class Game {
 
     private draw() {
         this.renderer.render()
-        let status = `Cities: ${this.cities.length}`
+        let status = `SCORE: ${this.score} | TIME: ${Math.floor(this.timeLeft)} | CITIES: ${this.cities.length}`
         if (this.activePowerUp === PowerUpType.BIG_BLAST) {
-            status += ` | BIG BLAST ACTIVE (${Math.ceil(this.powerUpTimer / 60)})`
+            status += ` | BIG BLAST`
         } else if (this.activePowerUp === PowerUpType.RAIL_GUN) {
-            status += ` | RAIL GUN ACTIVE (${Math.ceil(this.powerUpTimer / 60)})`
+            status += ` | RAIL GUN`
         } else if (this.activePowerUp === PowerUpType.HEAT_SEEKER) {
-            status += ` | HEAT SEEKER ACTIVE (${Math.ceil(this.powerUpTimer / 60)})`
+            status += ` | HEAT SEEKER`
+        }
+        if (this.planetDefenceAvailable) {
+            status += ` | PLANET DEFENCE READY (SPACE)`
         }
         this.uiElement.innerText = status
 
         if (this.cities.length === 0 && !this.isGameOver) {
             this.isGameOver = true
+            this.gameOverElement.innerText = "GAME OVER"
             this.gameOverElement.style.display = 'block'
             this.audioManager.stopMusic()
         }

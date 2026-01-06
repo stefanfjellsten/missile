@@ -10,6 +10,9 @@ export class Missile implements Entity {
     public isEnemy: boolean
     public powerUpType: PowerUpType = PowerUpType.NONE
     public killedByExplosion: boolean = false
+    public health: number = 1
+    public maxHealth: number = 1
+    public isBoss: boolean = false
 
     private targetX: number
     private targetY: number
@@ -37,6 +40,12 @@ export class Missile implements Entity {
             else this.powerUpType = PowerUpType.HEAT_SEEKER
         }
 
+        if (isEnemy && Math.random() < 0.05) { // 5% chance for Boss
+            this.isBoss = true
+            this.health = 3
+            this.maxHealth = 3
+        }
+
         if (lockedTarget) {
             this.lockedTarget = lockedTarget
         }
@@ -46,7 +55,11 @@ export class Missile implements Entity {
 
         if (isEnemy && model) {
             const m = model.clone()
-            m.scale.set(0.75, 0.75, 0.75)
+            if (this.isBoss) {
+                m.scale.set(1.5, 1.5, 1.5) // big boss
+            } else {
+                m.scale.set(0.75, 0.75, 0.75)
+            }
             m.rotation.set(0, Math.PI / 2, Math.PI / 2)
             this.mesh.add(m)
 
@@ -249,5 +262,10 @@ export class Missile implements Entity {
         const distY = cy - closestY
 
         return (distX * distX + distY * distY) < (radius * radius)
+    }
+
+    public takeDamage(): boolean {
+        this.health--
+        return this.health <= 0
     }
 }

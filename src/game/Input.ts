@@ -6,6 +6,7 @@ export class Input {
     public lastClick: { x: number, y: number } | null = null
     public mousePosition: { x: number, y: number } = { x: 0, y: 0 }
     public isMouseDown: boolean = false
+    public triggerPlanetDefence: boolean = false
     private raycaster: THREE.Raycaster
     private mouse: THREE.Vector2
     private plane: THREE.Plane
@@ -20,6 +21,7 @@ export class Input {
         this.renderer.renderer.domElement.addEventListener('mousemove', (e) => this.handleMouseMove(e))
         this.renderer.renderer.domElement.addEventListener('mousedown', () => this.isMouseDown = true)
         this.renderer.renderer.domElement.addEventListener('mouseup', () => this.isMouseDown = false)
+        window.addEventListener('keydown', (e) => this.handleKeyDown(e))
     }
 
     private handleClick(e: MouseEvent) {
@@ -53,7 +55,14 @@ export class Input {
         }
     }
 
+    private handleKeyDown(e: KeyboardEvent) {
+        if (e.code === 'Space') {
+            this.triggerPlanetDefence = true
+        }
+    }
+
     public clear() {
         this.lastClick = null
+        this.triggerPlanetDefence = false
     }
 }
