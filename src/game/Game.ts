@@ -375,8 +375,10 @@ export class Game {
                 if (dist < 30) { // Hit radius
                     city.isAlive = false
                     missile.isAlive = false
+                    missile.isAlive = false
                     // Explosion spawned in cleanup
                     this.audioManager.playExplosion()
+                    this.renderer.triggerShake(30, 15) // Shake!
                 }
             })
         })

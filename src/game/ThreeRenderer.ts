@@ -4,6 +4,9 @@ export class ThreeRenderer {
     public scene: THREE.Scene
     public camera: THREE.OrthographicCamera
     public renderer: THREE.WebGLRenderer
+    private originalCamPos: THREE.Vector3 | null = null
+    private shakeTimer: number = 0
+    private shakeIntensity: number = 0
 
     constructor(canvasId: string) {
         const canvas = document.getElementById(canvasId) as HTMLCanvasElement
@@ -27,6 +30,7 @@ export class ThreeRenderer {
         this.camera.position.z = 600
         this.camera.position.y = 0
         this.camera.lookAt(0, 0, 0)
+        this.originalCamPos = this.camera.position.clone()
 
         this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
         this.renderer.setSize(window.innerWidth, window.innerHeight)
@@ -57,7 +61,29 @@ export class ThreeRenderer {
     }
 
     public render() {
+        if (this.shakeTimer > 0) {
+            this.shakeTimer--
+            // Shake
+            const offset = (Math.random() - 0.5) * this.shakeIntensity
+            const offset2 = (Math.random() - 0.5) * this.shakeIntensity
+            this.camera.position.x = this.originalCamPos!.x + offset
+            this.camera.position.y = this.originalCamPos!.y + offset2
+
+            // Fuzzy
+            this.renderer.domElement.style.filter = 'blur(2px)'
+        } else {
+            if (this.originalCamPos) {
+                this.camera.position.copy(this.originalCamPos)
+            }
+            this.renderer.domElement.style.filter = 'none'
+        }
+
         this.renderer.render(this.scene, this.camera)
+    }
+
+    public triggerShake(durationFrames: number, intensity: number) {
+        this.shakeTimer = durationFrames
+        this.shakeIntensity = intensity
     }
 
     // Helper to add/remove objects
