@@ -16,6 +16,30 @@
   <div id="game-over"
     style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: red; font-size: 60px; font-family: monospace; display: none; pointer-events: none; z-index: 10; font-weight: bold;">
     GAME OVER</div>
+  <div id="start-screen"
+    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #0f0; font-family: monospace; z-index: 20;">
+    <h1 style="font-size: 60px; margin-bottom: 20px; text-shadow: 0 0 10px #0f0;">MISSILE COMMAND 3D</h1>
+    <div style="font-size: 18px; max-width: 600px; text-align: left; line-height: 1.6;">
+      <p style="text-align: center; color: white; margin-bottom: 30px;">PROTECT YOUR CITIES. SURVIVE FOR 2 MINUTES.</p>
+
+      <h3 style="color: #0ff;">WEAPONS & CONTROLS:</h3>
+      <ul style="list-style: none; padding: 0;">
+        <li>[L-CLICK] <strong>STANDARD MISSILE</strong> - Intercept incoming threats</li>
+        <li>[SPACE] <strong>PLANET DEFENCE</strong> - Massive shockwave (ONE USE ONLY)</li>
+      </ul>
+
+      <h3 style="color: #f0f;">POWER-UPS (SHOOT TO COLLECT):</h3>
+      <ul style="list-style: none; padding: 0;">
+        <li><span style="color: cyan;">●</span> <strong>BIG BLAST</strong> - 3x Explosion Radius</li>
+        <li><span style="color: magenta;">●</span> <strong>RAIL GUN</strong> - Rapid Fire (Hold Mouse)</li>
+        <li><span style="color: orange;">●</span> <strong>HEAT SEEKER</strong> - Homing Missiles</li>
+      </ul>
+    </div>
+    <button id="start-button"
+      style="margin-top: 40px; padding: 15px 40px; font-size: 24px; font-family: monospace; background: #0f0; color: black; border: none; cursor: pointer; font-weight: bold; box-shadow: 0 0 15px #0f0;">
+      START MISSION
+    </button>
+  </div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 

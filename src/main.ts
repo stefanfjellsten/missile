@@ -6,4 +6,12 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 `
 
 const game = new Game()
-game.start()
+// game.start()
+
+const startButton = document.getElementById('start-button')
+const startScreen = document.getElementById('start-screen')
+
+startButton?.addEventListener('click', () => {
+  if (startScreen) startScreen.style.display = 'none'
+  game.start()
+})
