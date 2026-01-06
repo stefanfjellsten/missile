@@ -93,7 +93,8 @@ export class Missile implements Entity {
         }
     }
 
-    update() {
+    update(dt: number) {
+        const speed = this.speed * dt
         // Heat Seeker Logic (Player Only for now)
         if (!this.isEnemy && this.powerUpType === PowerUpType.HEAT_SEEKER) {
             // Update Target if locked
@@ -116,7 +117,7 @@ export class Missile implements Entity {
             const distSafe = dist > 0 ? dist : 1
 
             // Allow turning
-            const turnFactor = 0.05 // Smoother turning
+            const turnFactor = 0.05 * dt // Smoother turning scaled by dt
 
             // Normalize desired and scale to max speed
             const normDesVx = (desiredVx / distSafe) * this.speed
@@ -133,8 +134,8 @@ export class Missile implements Entity {
             this.vy = (this.vy / speedSafe) * this.speed
 
             // Move
-            this.x += this.vx
-            this.y += this.vy
+            this.x += this.vx * dt
+            this.y += this.vy * dt
 
             // Rotate mesh to face velocity
             const angle = Math.atan2(this.vy, this.vx)
@@ -143,13 +144,12 @@ export class Missile implements Entity {
             this.mesh.rotation.z = angle - Math.PI / 2
 
             // Bounds check for cleanup
-            // Bounds check for cleanup
             if (this.y > 1000 || this.y < -1000 || this.x > 2000 || this.x < -2000) {
                 this.isAlive = false
             }
 
             // Detonate on target proximity
-            if (this.lockedTarget && dist < this.speed * 1.5) {
+            if (this.lockedTarget && dist < this.speed * 1.5) { // speed is raw per-frame speed, so keep comparison roughly same
                 this.isAlive = false
             }
 
@@ -164,13 +164,13 @@ export class Missile implements Entity {
             const dy = this.targetY - this.y
             const distance = Math.sqrt(dx * dx + dy * dy)
 
-            if (distance < this.speed) {
+            if (distance < speed) {
                 this.x = this.targetX
                 this.y = this.targetY
                 this.isAlive = false
             } else {
-                this.x += (dx / distance) * this.speed
-                this.y += (dy / distance) * this.speed
+                this.x += (dx / distance) * speed
+                this.y += (dy / distance) * speed
             }
         }
 
@@ -199,7 +199,7 @@ export class Missile implements Entity {
         const xOffset = this.isEnemy ? -2.0 : 0 // Fine tune 3D model x-offset
 
         this.trail.emit(this.x - vx * offset + xOffset, this.y - vy * offset, 0)
-        this.trail.update()
+        this.trail.update(dt)
 
         this.mesh.position.set(this.x, this.y, 0)
     }

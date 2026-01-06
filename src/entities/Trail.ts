@@ -69,7 +69,7 @@ export class Trail {
         }
     }
 
-    public update() {
+    public update(dt: number) {
         let activeCount = 0
         const positions = this.mesh.geometry.attributes.position.array as Float32Array
         const colors = this.mesh.geometry.attributes.color.array as Float32Array
@@ -77,7 +77,7 @@ export class Trail {
         for (let i = 0; i < this.particleCount; i++) {
             if (this.lifetimes[i] > 0) {
                 activeCount++
-                this.lifetimes[i] -= 0.05 // Decay rate
+                this.lifetimes[i] -= 0.05 * dt // Decay rate
 
                 if (this.lifetimes[i] <= 0) {
                     this.lifetimes[i] = 0
@@ -87,9 +87,9 @@ export class Trail {
                 }
 
                 // Move
-                positions[i * 3] += this.velocities[i * 3]
-                positions[i * 3 + 1] += this.velocities[i * 3 + 1]
-                positions[i * 3 + 2] += this.velocities[i * 3 + 2]
+                positions[i * 3] += this.velocities[i * 3] * dt
+                positions[i * 3 + 1] += this.velocities[i * 3 + 1] * dt
+                positions[i * 3 + 2] += this.velocities[i * 3 + 2] * dt
 
                 // Color Evolution: Yellow -> Red -> Dark
                 const life = this.lifetimes[i]

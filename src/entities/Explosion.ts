@@ -85,8 +85,8 @@ export class Explosion implements Entity {
         this.mesh.position.set(x, y, 0)
     }
 
-    update() {
-        this.lifetime++
+    update(dt: number) {
+        this.lifetime += dt
         if (this.lifetime > this.maxLifetime) {
             this.isAlive = false
             return
@@ -95,9 +95,9 @@ export class Explosion implements Entity {
         // Logic Radius update (fade in/out for collision)
         // Simulate the previous expanding sphere logic roughly
         if (this.lifetime < 10) {
-            this.radius += 3 * this.radiusMultiplier
+            this.radius += 3 * this.radiusMultiplier * dt
         } else if (this.lifetime > 40) {
-            this.radius -= 1
+            this.radius -= 1 * dt
         }
         if (this.radius < 0) this.radius = 0
 
@@ -122,14 +122,14 @@ export class Explosion implements Entity {
             const v = this.particles[i].velocity
 
             // Gravity
-            v.y -= 0.05
+            v.y -= 0.05 * dt
 
             // Move
-            positions[i * 3] += v.x
-            positions[i * 3 + 1] += v.y
+            positions[i * 3] += v.x * dt
+            positions[i * 3 + 1] += v.y * dt
 
             // Drag
-            v.multiplyScalar(0.95)
+            v.multiplyScalar(Math.pow(0.95, dt))
 
             // Color Evolution: White -> Yellow -> Red -> Dark
             const t = this.lifetime / this.maxLifetime

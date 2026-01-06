@@ -93,7 +93,7 @@ export class City implements Entity {
         this.mesh.position.set(x, 10, 0)
     }
 
-    update() {
+    update(dt: number) {
         // Cleanup handled by Game class
     }
 }

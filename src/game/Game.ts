@@ -146,16 +146,17 @@ export class Game {
     private loop(timestamp: number) {
         if (!this.isRunning) return
 
+        const dt = (timestamp - this.lastTime) / 16.67
         this.lastTime = timestamp
         this.frameCounter++
 
-        this.update(timestamp)
+        this.update(timestamp, dt)
         this.draw()
 
         requestAnimationFrame(this.loop.bind(this))
     }
 
-    private update(timestamp: number) {
+    private update(timestamp: number, dt: number) {
         if (this.powerUpTimer > 0) {
             this.powerUpTimer--
             if (this.powerUpTimer <= 0) {
@@ -191,7 +192,7 @@ export class Game {
 
         // 3. Update Entities
         this.missiles.forEach(m => {
-            m.update()
+            m.update(dt)
 
             // Retargeting logic for Heat Seeker
             if (!m.isEnemy && m.powerUpType === PowerUpType.HEAT_SEEKER && (!m.lockedTarget || !m.lockedTarget.isAlive)) {
@@ -213,11 +214,11 @@ export class Game {
                 }
             }
         })
-        this.explosions.forEach(e => e.update())
-        this.cities.forEach(c => c.update())
+        this.explosions.forEach(e => e.update(dt))
+        this.cities.forEach(c => c.update(dt))
 
         // Update failing/dying trails
-        this.dyingTrails.forEach(t => t.update())
+        this.dyingTrails.forEach(t => t.update(dt))
         // Cleanup empty trails
         const activeTrails: Trail[] = []
         this.dyingTrails.forEach(t => {
