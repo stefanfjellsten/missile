@@ -26,9 +26,8 @@ export class Missile implements Entity {
         this.isEnemy = isEnemy
         this.speed = isEnemy ? Config.MISSILE_SPEED : Config.PLAYER_MISSILE_SPEED
 
-        // Randomly assign power-up to enemy missiles (10% chance)
         if (isEnemy && Math.random() < 0.1) {
-            this.powerUpType = PowerUpType.BIG_BLAST
+            this.powerUpType = Math.random() > 0.5 ? PowerUpType.BIG_BLAST : PowerUpType.RAIL_GUN
         }
 
         this.trail = new Trail()
@@ -42,8 +41,9 @@ export class Missile implements Entity {
 
             if (this.powerUpType !== PowerUpType.NONE) {
                 // Visual Indicator
-                const geom = new THREE.SphereGeometry(10, 8, 8)
-                const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff }) // Cyan
+                const geom = new THREE.SphereGeometry(5, 8, 8)
+                const color = this.powerUpType === PowerUpType.BIG_BLAST ? 0x00ffff : 0xff00ff // Cyan or Magenta
+                const mat = new THREE.MeshBasicMaterial({ color })
                 const orb = new THREE.Mesh(geom, mat)
                 orb.position.set(0, 10, 0) // Attached to missile body
                 this.mesh.add(orb)

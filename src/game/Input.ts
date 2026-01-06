@@ -5,6 +5,7 @@ export class Input {
     private renderer: ThreeRenderer
     public lastClick: { x: number, y: number } | null = null
     public mousePosition: { x: number, y: number } = { x: 0, y: 0 }
+    public isMouseDown: boolean = false
     private raycaster: THREE.Raycaster
     private mouse: THREE.Vector2
     private plane: THREE.Plane
@@ -17,6 +18,8 @@ export class Input {
 
         this.renderer.renderer.domElement.addEventListener('click', (e) => this.handleClick(e))
         this.renderer.renderer.domElement.addEventListener('mousemove', (e) => this.handleMouseMove(e))
+        this.renderer.renderer.domElement.addEventListener('mousedown', () => this.isMouseDown = true)
+        this.renderer.renderer.domElement.addEventListener('mouseup', () => this.isMouseDown = false)
     }
 
     private handleClick(e: MouseEvent) {

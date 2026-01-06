@@ -5,6 +5,7 @@ export class AudioManager {
     private isMuted: boolean = false
     private sampler: Tone.Sampler
     private synth: Tone.PolySynth
+    private railGunSynth: Tone.PolySynth
     private explosionSynth: Tone.NoiseSynth
     private playbackState: 'stopped' | 'playing' = 'stopped'
     private midiPart: Tone.Part | null = null
@@ -62,6 +63,13 @@ export class AudioManager {
             envelope: { attack: 0.005, decay: 0.5, sustain: 0.5 }
         }).toDestination()
         this.explosionSynth.volume.value = -5
+
+        // Rail Gun Synth (Sharp Sawtooth)
+        this.railGunSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "sawtooth" },
+            envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
+        }).toDestination()
+        this.railGunSynth.volume.value = -12
     }
 
     public async resume() {
@@ -94,6 +102,20 @@ export class AudioManager {
         this.lastAudioTime = now
 
         this.explosionSynth.triggerAttackRelease("8n", now)
+    }
+
+    public playRailGun() {
+        if (this.isMuted) return
+        this.resume()
+
+        let now = Tone.now() + 0.05
+        if (now <= this.lastAudioTime) {
+            now = this.lastAudioTime + 0.005 // Faster interval
+        }
+        this.lastAudioTime = now
+
+        // Higher pitch, fast decay
+        this.railGunSynth.triggerAttackRelease("C6", "32n", now)
     }
 
     public async playMidi(url: string) {

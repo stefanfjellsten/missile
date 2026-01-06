@@ -1,6 +1,7 @@
 export enum PowerUpType {
     NONE,
-    BIG_BLAST
+    BIG_BLAST,
+    RAIL_GUN
 }
 
 export const Config = {
@@ -8,7 +9,7 @@ export const Config = {
     CANVAS_HEIGHT: window.innerHeight,
     FPS: 60,
     GRAVITY: 0.05,
-    MISSILE_SPEED: 2,
+    MISSILE_SPEED: 1,
     PLAYER_MISSILE_SPEED: 10,
     EXPLOSION_RADIUS: 50,
     EXPLOSION_GROWTH_RATE: 1,

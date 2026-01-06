@@ -36,6 +36,7 @@ export class Game {
     private powerUpTimer: number = 0
 
     private enemySpawnTimer: number = 0
+    private frameCounter: number = 0
 
     // Game field boundaries (approximate based on camera Z=500 FOV=75)
     // At z=0, visible height is approx 2 * 500 * tan(75/2) = 767.
@@ -146,14 +147,15 @@ export class Game {
         if (!this.isRunning) return
 
         this.lastTime = timestamp
+        this.frameCounter++
 
-        this.update()
+        this.update(timestamp)
         this.draw()
 
         requestAnimationFrame(this.loop.bind(this))
     }
 
-    private update() {
+    private update(timestamp: number) {
         if (this.powerUpTimer > 0) {
             this.powerUpTimer--
             if (this.powerUpTimer <= 0) {
@@ -173,27 +175,18 @@ export class Game {
         }
 
         // 2. Player Input
-        if (this.input.lastClick && this.silo) {
-            // Clamp click to screen bounds if needed, but raycaster usually handles map correctly
-            const startPos = this.silo.getTipPosition()
-
-            const missile = new Missile(
-                startPos.x, // Center x
-                startPos.y, // Bottom y
-                this.input.lastClick.x,
-                this.input.lastClick.y,
-                false
-            )
-            this.missiles.push(missile)
-            this.renderer.add(missile.mesh)
-            this.renderer.add(missile.trail.mesh)
-            this.input.clear()
-            this.audioManager.playShoot()
-
-            if (!this.musicStarted) {
-                this.musicStarted = true
-                this.audioManager.playMidi('/Beethoven-Moonlight-Sonata.mid')
+        // Rail Gun Auto-Fire
+        if (this.activePowerUp === PowerUpType.RAIL_GUN && this.input.isMouseDown && this.silo) {
+            // Rate limit: spawn every 5 frames
+            if (this.frameCounter % 5 === 0 && this.input.mousePosition) {
+                this.firePlayerMissile(this.input.mousePosition.x, this.input.mousePosition.y, true) // isRailGun=true
             }
+        }
+        // Normal Fire
+        else if (this.input.lastClick && this.silo) {
+            // Clamp click to screen bounds if needed, but raycaster usually handles map correctly
+            this.firePlayerMissile(this.input.lastClick.x, this.input.lastClick.y, false)
+            this.input.clear()
         }
 
         // 3. Update Entities
@@ -254,11 +247,23 @@ export class Game {
         deadMissiles.forEach(m => {
             if (!m.isEnemy) {
                 // Player missile always explodes
-                const radiusMultiplier = this.activePowerUp === PowerUpType.BIG_BLAST ? 3 : 1
+                const isRailGun = this.activePowerUp === PowerUpType.RAIL_GUN
+                const isBigBlast = this.activePowerUp === PowerUpType.BIG_BLAST
+
+                let radiusMultiplier = 1
+                if (isBigBlast) radiusMultiplier = 3
+                if (isRailGun) radiusMultiplier = 0.5
+
                 const ex = new Explosion(m.x, m.y, radiusMultiplier)
                 this.explosions.push(ex)
                 this.renderer.add(ex.mesh)
-                this.audioManager.playExplosion()
+
+                if (!isRailGun) {
+                    this.audioManager.playExplosion()
+                } else {
+                    // Maybe lighter sound or skip?
+                    // We'll skip standard explosion sound for rapid fire to save ears
+                }
             } else {
                 // Enemy missile: did it hit ground?
                 if (m.y <= -this.fieldHeight / 2 + 50) {
@@ -310,6 +315,12 @@ export class Game {
         this.explosions.forEach(explosion => {
             this.missiles.forEach(missile => {
                 if (!missile.isAlive) return
+
+                // Prevent Friendly Fire if Rail Gun is active
+                if (this.activePowerUp === PowerUpType.RAIL_GUN && !missile.isEnemy) {
+                    return
+                }
+
                 const dx = missile.x - explosion.x
                 const dy = missile.y - explosion.y
                 const dist = Math.sqrt(dx * dx + dy * dy)
@@ -350,6 +361,8 @@ export class Game {
         let status = `Cities: ${this.cities.length}`
         if (this.activePowerUp === PowerUpType.BIG_BLAST) {
             status += ` | BIG BLAST ACTIVE (${Math.ceil(this.powerUpTimer / 60)})`
+        } else if (this.activePowerUp === PowerUpType.RAIL_GUN) {
+            status += ` | RAIL GUN ACTIVE (${Math.ceil(this.powerUpTimer / 60)})`
         }
         this.uiElement.innerText = status
 
@@ -357,6 +370,42 @@ export class Game {
             this.isGameOver = true
             this.gameOverElement.style.display = 'block'
             this.audioManager.stopMusic()
+        }
+    }
+    private firePlayerMissile(targetX: number, targetY: number, isRailGun: boolean) {
+        if (!this.silo) return
+        const startPos = this.silo.getTipPosition()
+
+        const missile = new Missile(
+            startPos.x,
+            startPos.y,
+            targetX,
+            targetY,
+            false
+        )
+
+        if (isRailGun) {
+            // Speed hack: update internals directly or subclass. 
+            // Since speed is private in Missile, we might need a Setter or modify Missile.
+            // But wait, speed is initialized in constructor.
+            // Let's modify Missile to accept speed? Or just "isRailGun" flag?
+            // Actually, let's just make speed public for now or hack it via any
+            (missile as any).speed = 25
+        }
+
+        this.missiles.push(missile)
+        this.renderer.add(missile.mesh)
+        this.renderer.add(missile.trail.mesh)
+
+        if (!isRailGun) {
+            this.audioManager.playShoot()
+        } else {
+            this.audioManager.playRailGun()
+        }
+
+        if (!this.musicStarted) {
+            this.musicStarted = true
+            this.audioManager.playMidi('/Beethoven-Moonlight-Sonata.mid')
         }
     }
 }
