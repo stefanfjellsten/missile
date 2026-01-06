@@ -41,13 +41,18 @@ export class Missile implements Entity {
             this.mesh.add(m)
 
             if (this.powerUpType !== PowerUpType.NONE) {
-                // Visual Indicator
-                const geom = new THREE.SphereGeometry(5, 8, 8)
-                const color = this.powerUpType === PowerUpType.BIG_BLAST ? 0x00ffff : 0xff00ff // Cyan or Magenta
-                const mat = new THREE.MeshBasicMaterial({ color })
-                const orb = new THREE.Mesh(geom, mat)
-                orb.position.set(0, 10, 0) // Attached to missile body
-                this.mesh.add(orb)
+                // Color the missile itself
+                const color = this.powerUpType === PowerUpType.BIG_BLAST ? 0x00ffff : 0xff00ff
+                m.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        // Create a new material to avoid affecting other instances
+                        const newMat = new THREE.MeshBasicMaterial({
+                            color: color,
+                            map: (child.material as THREE.MeshBasicMaterial).map // Preserve texture if any, though color will tint it
+                        })
+                        child.material = newMat
+                    }
+                })
             }
         } else {
             const color = isEnemy ? Config.COLORS.MISSILE_ENEMY : Config.COLORS.MISSILE_PLAYER
