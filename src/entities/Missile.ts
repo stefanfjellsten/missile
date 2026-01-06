@@ -9,6 +9,7 @@ export class Missile implements Entity {
     public isAlive: boolean = true
     public isEnemy: boolean
     public powerUpType: PowerUpType = PowerUpType.NONE
+    public killedByExplosion: boolean = false
 
     private targetX: number
     private targetY: number

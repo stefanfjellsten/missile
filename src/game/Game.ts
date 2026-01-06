@@ -271,6 +271,12 @@ export class Game {
                     this.explosions.push(ex)
                     this.renderer.add(ex.mesh)
                     this.audioManager.playExplosion()
+                } else if (m.killedByExplosion) {
+                    // Chain Reaction!
+                    const ex = new Explosion(m.x, m.y)
+                    this.explosions.push(ex)
+                    this.renderer.add(ex.mesh)
+                    this.audioManager.playExplosion()
                 }
             }
             this.renderer.remove(m.mesh)
@@ -327,6 +333,7 @@ export class Game {
                         this.ActivatePowerUp(missile.powerUpType)
                     }
                     missile.isAlive = false
+                    missile.killedByExplosion = true
                     // This is an interception
                 }
             })
